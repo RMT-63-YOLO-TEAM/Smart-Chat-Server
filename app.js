@@ -7,8 +7,8 @@ const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*",
-  },
+    origin: "*"
+  }
 });
 
 app.get("/", (req, res) => {
@@ -21,6 +21,10 @@ const messages = [];
 // 2 Instance WebSocket -> Socket.IO Server
 io.on("connection", (socket) => {
   console.log("a user connected", socket.id);
+
+  socket.on("disconnect", () => {
+    console.log("user disconnected", socket.id);
+  });
 });
 
 server.listen(3000, () => {
