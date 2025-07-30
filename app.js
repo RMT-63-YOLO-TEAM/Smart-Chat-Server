@@ -7,8 +7,8 @@ const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*",
-  },
+    origin: "*"
+  }
 });
 
 app.get("/", (req, res) => {
@@ -21,6 +21,19 @@ const messages = [];
 // 2 Instance WebSocket -> Socket.IO Server
 io.on("connection", (socket) => {
   console.log("a user connected", socket.id);
+
+  // Kirim socket.id ke client saat connect
+  socket.emit("welcome", { socketId: socket.id });
+
+  // Terima pesan dari client dan broadcast ke semua client
+  socket.on("chat message", (msg) => {
+    messages.push({ id: socket.id, message: msg });
+    io.emit("chat message", { id: socket.id, message: msg });
+  });
+
+  socket.on("disconnect", () => {
+    console.log("user disconnected", socket.id);
+  });
 });
 
 server.listen(3000, () => {
