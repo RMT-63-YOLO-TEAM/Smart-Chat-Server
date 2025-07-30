@@ -1,61 +1,127 @@
-const dotenv = require("dotenv");
-const { createServer } = require("node:http");
-const { Server } = require("socket.io");
-const express = require("express");
-const app = express();
+import { useEffect, useState } from "react";
+import { io } from "socket.io-client";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+const socket = io("http://localhost:3000");
 
-const server = createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: "*",
-  },
-});
+export default function ChatRoom() {
+  const [socketId, setSocketId] = useState("");
+  const [messages, setMessages] = useState([]);
+  const [inputMessage, setInputMessage] = useState("");
 
-app.get("/", (req, res) => {
-  res.send("<h1>Hello world</h1>");
-});
+  useEffect(() => {
+    // koneksi berhasil
+    socket.on("connect", () => {
+      console.log("Connected to server:", socket.id);
+    });
 
-//* INI AKAN DI SIMPAN DALAM ARRAY
-const messages = [];
+    // menerima welcome message dengan socket.id dari server
+    socket.on("welcome", (data) => {
+      console.log(" Welcome message:", data);
+      setSocketId(data.socketId);
+    });
 
-// 2 Instance WebSocket -> Socket.IO Server
-io.on("connection", (socket) => {
-  console.log("a user connected", socket.id);
+    // menerima chat message dari server
+    socket.on("chat message", (data) => {
+      console.log("New message:", data);
+      setMessages((prevMessages) => [...prevMessages, data]);
+    });
 
-  socket.on("/ask/ai", async ({ prompt }) => {
-    const { generateAi } = require("./helpers/gemini");
-    try {
-      const promptAi = `
-You are ChatAssist, a smart and professional AI assistant in a global chat application.
-When a user invokes the /askai command, follow these guidelines:
-1. Respond in clear, fluent English (or switch to the user’s language if explicitly requested).
-2. Start with a concise 1–2 sentence summary of your answer.
-3. Use bullet points or numbered steps for detailed explanations when helpful.
-4. Include concrete examples or analogies to illustrate your points.
-5. Maintain a friendly, courteous tone throughout.
-6. Do not ask any follow‑up questions—just provide the complete answer based on the user’s input.
+    // handle disconnect
+    socket.on("disconnect", () => {
+      console.log("❌ Disconnected from server");
+    });
+    return () => {
+      // Cleanup: hapus semua event listeners saat unmount
+      socket.off("connect");
+      socket.off("welcome");
+      socket.off("chat message");
+      socket.off("disconnect");
+    };
+    // return () => {
+    //   socket.disconnect(); // cleanup koneksi saat unmount
+    // };
+  }, []);
 
-User: "${prompt}" `;
-      const aiResponse = await generateAi(promptAi);
-      console.log("AI Response: ", aiResponse);
-      const aiMessage = {
-        user: "AI",
-        message: aiResponse,
-      };
-      messages.push(aiMessage);
-      io.emit("/chats/messages/fetch", messages);
-    } catch (error) {
-      console.error("Error generating AI response:", error);
-      const errorMessage = {
-        user: "AI",
-        message: "Error generating AI response. Please try again.",
-      };
-      messages.push(errorMessage);
-      io.emit("/chats/messages/fetch", messages);
+  // fungsi untuk mengirim pesan
+  const sendMessage = (e) => {
+    e.preventDefault();
+
+    if (inputMessage.trim().toLowerCase().startsWith("/ai")) {
+      const prompt = inputMessage.trim().substring(4);
+      if (prompt) {
+        socket.emit("/ask/ai", { prompt });
+      } else {
+        socket.emit("chat message", {
+          message: inputMessage,
+          user: localStorage.getItem("user"),
+        });
+      }
+
+      setInputMessage("");
     }
-  });
-});
 
-server.listen(3000, () => {
-  console.log(`Server is running on port: http://localhost:3000`);
-});
+    if (inputMessage.trim()) {
+      socket.emit("chat message", inputMessage);
+      setInputMessage("");
+    }
+  };
+
+  return (
+    <div className="p-8 max-w-xl mx-auto">
+      <h1 className="text-3xl font-bold mb-2 text-gray-800">Chat Room</h1>
+      <p className="text-sm text-gray-500 mb-6">
+        Socket ID:{" "}
+        <span className="font-mono">{socketId || "Connecting..."}</span>
+      </p>
+
+      {/* Display messages */}
+      <div className="border rounded-lg bg-gray-50 h-80 overflow-y-auto p-4 mb-6 shadow-sm">
+        {messages.length === 0 ? (
+          <div className="text-gray-400 text-center mt-32">
+            No messages yet.
+          </div>
+        ) : (
+          messages.map((msg, index) => (
+            <div
+              key={index}
+              className={`flex flex-col ${
+                msg.id === socketId ? "items-end" : "items-start"
+              } mb-3`}
+            >
+              <div
+                className={`max-w-[70%] rounded-lg px-4 py-2 shadow ${
+                  msg.id === socketId
+                    ? "bg-green-100 text-gray-800"
+                    : "bg-white text-gray-900"
+                }`}
+              >
+                <span className="font-semibold text-gray-600">
+                  {msg.id === socketId ? "You" : msg.id}
+                </span>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {msg.message}
+                </ReactMarkdown>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+      <form onSubmit={sendMessage} className="flex gap-3">
+        <input
+          type="text"
+          value={inputMessage}
+          onChange={(e) => setInputMessage(e.target.value)}
+          placeholder="Type your message..."
+          className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400"
+        />
+        <button
+          type="submit"
+          className="px-6 py-2 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition"
+        >
+          Send
+        </button>
+      </form>
+    </div>
+  );
+}
