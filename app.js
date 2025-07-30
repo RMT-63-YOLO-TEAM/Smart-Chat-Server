@@ -28,8 +28,19 @@ io.on("connection", (socket) => {
 
   // Terima pesan dari client dan broadcast ke semua client
   socket.on("chat message", (msg) => {
-    messages.push({ id: socket.id, message: msg });
-    io.emit("chat message", { id: socket.id, message: msg });
+    const room = socket.data.room;
+    const username = socket.data.username || socket.id;
+    const newMessage = room
+      ? { room, user: username, message: msg }
+      : { id: socket.id, message: msg };
+
+    messages.push(newMessage);
+
+    if (room) {
+      io.to(room).emit("chat message", newMessage);
+    } else {
+      io.emit("chat message", newMessage);
+    }
   });
 
   socket.on("/ask/ai", async ({ prompt }) => {
@@ -46,6 +57,7 @@ When a user invokes the /askai command, follow these guidelines:
 6. Do not ask any follow‑up questions—just provide the complete answer based on the user’s input.
 
 User: "${prompt}" `;
+
       const aiResponse = await generateAi(promptAi);
       console.log("AI Response: ", aiResponse);
       const aiMessage = {
@@ -53,7 +65,13 @@ User: "${prompt}" `;
         message: aiResponse,
       };
       messages.push(aiMessage);
-      io.emit("chat message", { user: "AI", message: aiResponse });
+
+      const room = socket.data.room;
+      if (room) {
+        io.to(room).emit("chat message", aiMessage);
+      } else {
+        io.emit("chat message", aiMessage);
+      }
     } catch (error) {
       console.error("Error generating AI response:", error);
       const errorMessage = {
@@ -61,7 +79,7 @@ User: "${prompt}" `;
         message: "Error generating AI response. Please try again.",
       };
       messages.push(errorMessage);
-      io.emit("chat message", messages);
+      io.emit("chat message", errorMessage);
     }
   });
 
