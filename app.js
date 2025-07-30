@@ -22,6 +22,15 @@ const messages = [];
 io.on("connection", (socket) => {
   console.log("a user connected", socket.id);
 
+  // Kirim socket.id ke client saat connect
+  socket.emit("welcome", { socketId: socket.id });
+
+  // Terima pesan dari client dan broadcast ke semua client
+  socket.on("chat message", (msg) => {
+    messages.push({ id: socket.id, message: msg });
+    io.emit("chat message", { id: socket.id, message: msg });
+  });
+
   socket.on("/ask/ai", async ({ prompt }) => {
     const { generateAi } = require("./helpers/gemini");
     try {
@@ -53,6 +62,10 @@ User: "${prompt}" `;
       messages.push(errorMessage);
       io.emit("/chats/messages/fetch", messages);
     }
+  });
+
+  socket.on("disconnect", () => {
+    console.log("user disconnected", socket.id);
   });
 });
 
