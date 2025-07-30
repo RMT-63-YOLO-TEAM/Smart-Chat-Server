@@ -1,4 +1,3 @@
-const dotenv = require("dotenv");
 dotenv.config();
 const { createServer } = require("node:http");
 const { Server } = require("socket.io");
@@ -8,28 +7,45 @@ const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*",
-  },
+    origin: "*"
+  }
 });
 
 app.get("/", (req, res) => {
   res.send("<h1>Hello world</h1>");
 });
 
-//* INI AKAN DI SIMPAN DALAM ARRAY
 const messages = [];
 
-// 2 Instance WebSocket -> Socket.IO Server
 io.on("connection", (socket) => {
   console.log("a user connected", socket.id);
 
-  // Kirim socket.id ke client saat connect
   socket.emit("welcome", { socketId: socket.id });
 
-  // Terima pesan dari client dan broadcast ke semua client
+  // 👥 Join Room
+  socket.on("join", ({ username, room }) => {
+    if (!username || username.length < 2) {
+      socket.emit("error", { type: "error", message: "Username must be at least 2 characters" });
+      return;
+    }
+    if (!room || room.length < 3) {
+      socket.emit("error", { type: "error", message: "Room name must be at least 3 characters" });
+      return;
+    }
+
+    socket.join(room);
+    socket.data.username = username;
+    socket.data.room = room;
+    socket.emit("joined", { room, username });
+    socket.to(room).emit("user-joined", { username });
+    console.log(`${username} joined room ${room}`);
+  });
+
+  // 💬 Handle Chat Message TURU
   socket.on("chat message", (msg) => {
     const room = socket.data.room;
     const username = socket.data.username || socket.id;
+
     const newMessage = room
       ? { room, user: username, message: msg }
       : { id: socket.id, message: msg };
@@ -43,6 +59,7 @@ io.on("connection", (socket) => {
     }
   });
 
+  // 🤖 Ask AI
   socket.on("/ask/ai", async ({ prompt }) => {
     const { generateAi } = require("./helpers/gemini");
     try {
@@ -59,13 +76,12 @@ When a user invokes the /askai command, follow these guidelines:
 User: "${prompt}" `;
 
       const aiResponse = await generateAi(promptAi);
-      console.log("AI Response: ", aiResponse);
       const aiMessage = {
         user: "AI",
-        message: aiResponse,
+        message: aiResponse
       };
-      messages.push(aiMessage);
 
+      messages.push(aiMessage);
       const room = socket.data.room;
       if (room) {
         io.to(room).emit("chat message", aiMessage);
@@ -76,7 +92,7 @@ User: "${prompt}" `;
       console.error("Error generating AI response:", error);
       const errorMessage = {
         user: "AI",
-        message: "Error generating AI response. Please try again.",
+        message: "Error generating AI response. Please try again."
       };
       messages.push(errorMessage);
       io.emit("chat message", errorMessage);
@@ -85,9 +101,14 @@ User: "${prompt}" `;
 
   socket.on("disconnect", () => {
     console.log("user disconnected", socket.id);
+    const username = socket.data.username;
+    const room = socket.data.room;
+    if (room && username) {
+      socket.to(room).emit("user-left", { username });
+    }
   });
 });
 
 server.listen(3000, () => {
-  console.log(`Server is running on port: http://localhost:3000`);
+  console.log(`✅ Server is running on port: http://localhost:3000`);
 });
