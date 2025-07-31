@@ -17,6 +17,7 @@ app.get("/", (req, res) => {
 });
 
 const messages = [];
+const onlineUsers = {};
 
 io.on("connection", (socket) => {
   console.log("a user connected", socket.id);
@@ -43,8 +44,12 @@ io.on("connection", (socket) => {
     socket.join(room);
     socket.data.username = username;
     socket.data.room = room;
+    // Simpan user ke onlineUsers
+    if (!onlineUsers[room]) onlineUsers[room] = [];
+    if (!onlineUsers[room].includes(username)) onlineUsers[room].push(username);
     socket.emit("joined", { room, username });
     socket.to(room).emit("user-joined", { username });
+    io.to(room).emit("online-users", onlineUsers[room]);
     console.log(`${username} joined room ${room}`);
   });
 
@@ -52,17 +57,17 @@ io.on("connection", (socket) => {
   socket.on("chat message", (msg) => {
     const room = socket.data.room;
     const username = socket.data.username || socket.id;
-
-    const newMessage = room
-      ? { room, user: username, message: msg }
-      : { id: socket.id, message: msg };
-
-    messages.push(newMessage);
-
-    if (room) {
-      io.to(room).emit("chat message", newMessage);
+    let messageObj;
+    if (typeof msg === "object" && msg.message) {
+      messageObj = { room, user: username, message: msg.message };
     } else {
-      io.emit("chat message", newMessage);
+      messageObj = { room, user: username, message: msg };
+    }
+    messages.push(messageObj);
+    if (room) {
+      io.to(room).emit("chat message", messageObj);
+    } else {
+      io.emit("chat message", messageObj);
     }
   });
 
@@ -85,20 +90,28 @@ When a user invokes the /askai command, follow these guidelines:
 User: "${prompt}" `;
 
       const aiResponse = await generateAi(promptAi);
+      const room = socket.data.room;
       const aiMessage = {
+        room,
         user: "AI",
         message: aiResponse,
       };
-
       messages.push(aiMessage);
-
       io.emit("/ai/loading", false);
-      const room = socket.data.room;
       if (room) {
         io.to(room).emit("chat message", aiMessage);
       } else {
         io.emit("chat message", aiMessage);
       }
+      // Handle leave room
+      socket.on("leave", ({ username, room }) => {
+        if (room && username && onlineUsers[room]) {
+          onlineUsers[room] = onlineUsers[room].filter((u) => u !== username);
+          socket.leave(room);
+          io.to(room).emit("online-users", onlineUsers[room]);
+          socket.to(room).emit("user-left", { username });
+        }
+      });
     } catch (error) {
       console.error("Error generating AI response:", error);
       const errorMessage = {
@@ -115,7 +128,9 @@ User: "${prompt}" `;
     console.log("user disconnected", socket.id);
     const username = socket.data.username;
     const room = socket.data.room;
-    if (room && username) {
+    if (room && username && onlineUsers[room]) {
+      onlineUsers[room] = onlineUsers[room].filter((u) => u !== username);
+      io.to(room).emit("online-users", onlineUsers[room]);
       socket.to(room).emit("user-left", { username });
     }
   });
