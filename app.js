@@ -79,7 +79,7 @@ io.on("connection", (socket) => {
     try {
       const promptAi = `
 You are ChatAssist, a smart and professional AI assistant in a global chat application.
-When a user invokes the /askai command, follow these guidelines:
+When a user invokes the /ai command, follow these guidelines:
 1. Respond in clear, fluent English (or switch to the user’s language if explicitly requested).
 2. Start with a concise 1–2 sentence summary of your answer.
 3. Use bullet points or numbered steps for detailed explanations when helpful.
