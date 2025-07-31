@@ -10,8 +10,8 @@ const PORT = process.env.PORT || 3000;
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*"
-  }
+    origin: "https://smart-chat-group.web.app",
+  },
 });
 
 app.get("/", (req, res) => {
@@ -45,14 +45,14 @@ io.on("connection", (socket) => {
     if (!username || username.length < 2) {
       socket.emit("error", {
         type: "error",
-        message: "Username must be at least 2 characters"
+        message: "Username must be at least 2 characters",
       });
       return;
     }
     if (!room || room.length < 3) {
       socket.emit("error", {
         type: "error",
-        message: "Room name must be at least 3 characters"
+        message: "Room name must be at least 3 characters",
       });
       return;
     }
@@ -110,7 +110,7 @@ User: "${prompt}" `;
       const aiMessage = {
         room,
         user: "AI",
-        message: aiResponse
+        message: aiResponse,
       };
       messages.push(aiMessage);
       io.emit("/ai/loading", false);
@@ -132,7 +132,7 @@ User: "${prompt}" `;
       console.error("Error generating AI response:", error);
       const errorMessage = {
         user: "AI",
-        message: "Error generating AI response. Please try again."
+        message: "Error generating AI response. Please try again.",
       };
       messages.push(errorMessage);
       io.emit("/ai/loading", false);
