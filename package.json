@@ -1,0 +1,32 @@
+{
+  "name": "smart-chat-server",
+  "version": "1.0.0",
+  "description": "SmartChat adalah aplikasi web real-time yang memungkinkan beberapa pengguna bergabung ke dalam ruang obrolan dan berkomunikasi secara langsung (multiplayer chat). Selain itu, pengguna dapat berinteraksi dengan AI untuk mendapatkan saran, jawaban, atau balasan cerdas dari GeminiAI.",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RMT-63-YOLO-TEAM/Smart-Chat-Server.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/RMT-63-YOLO-TEAM/Smart-Chat-Server/issues"
+  },
+  "homepage": "https://github.com/RMT-63-YOLO-TEAM/Smart-Chat-Server#readme",
+  "dependencies": {
+    "@google/genai": "^1.11.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}
