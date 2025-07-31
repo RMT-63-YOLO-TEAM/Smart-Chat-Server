@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/RMT-63-YOLO-TEAM/Smart-Chat-Server#readme",
   "dependencies": {
+    "@google/genai": "^1.11.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
