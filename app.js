@@ -1,3 +1,4 @@
+const dotenv = require("dotenv");
 dotenv.config();
 const { createServer } = require("node:http");
 const { Server } = require("socket.io");
@@ -7,8 +8,8 @@ const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*"
-  }
+    origin: "*",
+  },
 });
 
 app.get("/", (req, res) => {
@@ -25,11 +26,17 @@ io.on("connection", (socket) => {
   // 👥 Join Room
   socket.on("join", ({ username, room }) => {
     if (!username || username.length < 2) {
-      socket.emit("error", { type: "error", message: "Username must be at least 2 characters" });
+      socket.emit("error", {
+        type: "error",
+        message: "Username must be at least 2 characters",
+      });
       return;
     }
     if (!room || room.length < 3) {
-      socket.emit("error", { type: "error", message: "Room name must be at least 3 characters" });
+      socket.emit("error", {
+        type: "error",
+        message: "Room name must be at least 3 characters",
+      });
       return;
     }
 
@@ -62,6 +69,8 @@ io.on("connection", (socket) => {
   // 🤖 Ask AI
   socket.on("/ask/ai", async ({ prompt }) => {
     const { generateAi } = require("./helpers/gemini");
+
+    io.emit("/ai/loading", true);
     try {
       const promptAi = `
 You are ChatAssist, a smart and professional AI assistant in a global chat application.
@@ -78,10 +87,12 @@ User: "${prompt}" `;
       const aiResponse = await generateAi(promptAi);
       const aiMessage = {
         user: "AI",
-        message: aiResponse
+        message: aiResponse,
       };
 
       messages.push(aiMessage);
+
+      io.emit("/ai/loading", false);
       const room = socket.data.room;
       if (room) {
         io.to(room).emit("chat message", aiMessage);
@@ -92,9 +103,10 @@ User: "${prompt}" `;
       console.error("Error generating AI response:", error);
       const errorMessage = {
         user: "AI",
-        message: "Error generating AI response. Please try again."
+        message: "Error generating AI response. Please try again.",
       };
       messages.push(errorMessage);
+      io.emit("/ai/loading", false);
       io.emit("chat message", errorMessage);
     }
   });
