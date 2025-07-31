@@ -1,9 +1,11 @@
-const dotenv = require("dotenv");
-dotenv.config();
+if (process.env.NODE_ENV !== "production") {
+  require("dotenv").config();
+}
 const { createServer } = require("node:http");
 const { Server } = require("socket.io");
 const express = require("express");
 const app = express();
+const PORT = process.env.PORT || 3000;
 
 const server = createServer(app);
 const io = new Server(server, {
@@ -150,6 +152,6 @@ User: "${prompt}" `;
   });
 });
 
-server.listen(3000, () => {
-  console.log(`✅ Server is running on port: http://localhost:3000`);
+server.listen(PORT, () => {
+  console.log(`✅ Server is running on port: http://localhost:${PORT}`);
 });
